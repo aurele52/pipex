@@ -6,44 +6,64 @@
 #    By: audreyer <marvin@42.fr>                    +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2022/02/21 22:50:22 by audreyer          #+#    #+#              #
-#    Updated: 2022/03/09 18:34:51 by audreyer         ###   ########.fr        #
+#    Updated: 2022/07/22 01:30:19 by audreyer         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 NAME = pipex
 
-SRC_DIR = srcs/
+CC = gcc
 
-SRC =  srcs/pipex.c
+FLAG = -g -Wall -Werror -Wextra 
 
-INC = includes/
+SRC=	src/pipex.c
 
-LIBINC = ../libft/includes/
+OBJ = $(SRC:.c=.o)
+
+.c.o:
+	$(CC) $(FLAG) -I include -c $< -o $(<:.c=.o)
+
+INC = include/pipex.h
+
+INC_LIBFT = include/libft.h
 
 LIB = libft.a
 
-BIN_DIR = bin/
+all:	$(LIB) $(NAME)
 
-BIN = pipex.o
+$(NAME):	$(OBJ) $(INC) $(INC_LIBFT)
+	$(CC) $(FLAG) $(OBJ) $(LIB) -o $(NAME)
 
-CC = gcc
+clean:
+	rm -f $(OBJ) libft.a
 
-OPTS = -Wall -Werror -Wextra -g
-
-all			:  $(NAME)
-
-$(NAME)		: 
-	make -C ../libft/
-	$(CC) $(OPTS) -I $(LIBINC) -I includes/ -c $(SRC)
-	$(CC) $(OPTS) $(BIN) -L ../libft/ -lft -o $(NAME)
-
-
-clean 		:
-	make clean -C ../libft/
-	rm -f $(BIN)
-
-fclean		: clean
-	make fclean -C ../libft/
+fclean:	clean
 	rm -f $(NAME)
 
+$(LIB)	:
+	make -C ./libft/
+	rm -f libft.a
+	cp libft/libft.a .
+
 re			: fclean all 
+
+git:
+	make git -C ./libft/
+	rm -f libft.a
+	make fclean
+	git add obj
+	git add src
+	git add Makefile
+	git add include/
+	read S; git commit -m $${S}
+	git push
+
+fini:
+	rm libft
+	cp -r ../libft .
+	rm -rf libft/.git
+	make fclean -C ./libft/
+	git add libft
+	make git
+
+.PHONY: all clean fclean re libft
