@@ -6,7 +6,7 @@
 /*   By: audreyer <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/02/23 16:18:05 by audreyer          #+#    #+#             */
-/*   Updated: 2022/07/26 20:52:40 by audreyer         ###   ########.fr       */
+/*   Updated: 2022/07/26 22:24:22 by audreyer         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -58,6 +58,28 @@ int	ft_execute(char *argv, char **env)
 	return (0);
 }
 
+int	ft1_close(int fd)
+{
+	int	closed;
+
+	closed = close(fd);
+	if (closed == -1)
+		write(2, "n1p", 3);
+	return (closed);
+}
+
+
+int	ft2_close(int fd)
+{
+	int	closed;
+
+	closed = close(fd);
+	if (closed == -1)
+		write(2, "n2p", 3);
+	return (closed);
+}
+
+
 int	ft_close(int fd)
 {
 	int	closed;
@@ -72,8 +94,7 @@ int	*ft_child(t_pipex *pipex, int i, int *prevpipe, int *childid)
 {
 	int	*newpipe;
 	newpipe = malloc(sizeof(int) * 2);
-	if (i != pipex->argc - 2)
-		pipe(newpipe);
+	pipe(newpipe);
 	childid[i] = fork();
 	if (childid[i] == 0)
 	{
@@ -87,7 +108,8 @@ int	*ft_child(t_pipex *pipex, int i, int *prevpipe, int *childid)
 		}
 		else if (i == pipex->argc - 4)
 		{
-
+			ft_close(newpipe[0]);
+			ft_close(newpipe[1]);
 			ft_close(prevpipe[1]);
 			dup2(prevpipe[0], 0);
 			ft_close(prevpipe[0]);
@@ -96,14 +118,13 @@ int	*ft_child(t_pipex *pipex, int i, int *prevpipe, int *childid)
 		}
 		else
 		{
-//			ft_close(pipex->fdout);
-//			ft_close(pipex->fdin);
 			ft_close(prevpipe[1]);
 			dup2(prevpipe[0], 0);
 			ft_close(prevpipe[0]);
 			ft_close(newpipe[0]);
 			dup2(newpipe[1], 1);
 			ft_close(newpipe[1]);
+			ft_close(pipex->fdout);
 		}
 		ft_execute(pipex->argv[i + 2], pipex->env);
 		write(1, "dsa\n", 4);
@@ -111,13 +132,21 @@ int	*ft_child(t_pipex *pipex, int i, int *prevpipe, int *childid)
 	else
 	{
 		if (i == 0)
+		{
 			ft_close(pipex->fdin);
+		}
+		else if (i == pipex->argc - 4)
+		{
+			ft_close(prevpipe[1]);
+			ft_close(prevpipe[0]);
+			ft_close(pipex->fdout);
+			ft1_close(newpipe[0]);
+			ft2_close(newpipe[1]);
+		}
 		else
 		{
 			ft_close(prevpipe[1]);
 			ft_close(prevpipe[0]);
-			if (i == pipex->argc - 4)
-				ft_close(pipex->fdout);
 		}
 	}
 	return (newpipe);
@@ -126,11 +155,13 @@ int	*ft_child(t_pipex *pipex, int i, int *prevpipe, int *childid)
 int	main(int argc, char **argv, char **env)
 {
 	t_pipex *pipex;
-	int	mypipe[3];
+	int	*mypipe;
 	int	i;
 	int	*childid;
+	int	*prevpipe;
 
 	i = 0;
+	prevpipe = 0;
 	if (argc < 3)
       		return (0);
 	pipex = malloc(sizeof(*pipex));
@@ -148,10 +179,16 @@ int	main(int argc, char **argv, char **env)
 		ft_exit(0, 0);
 	while (i < argc - 3)
 	{
-		mypipe = ft_child(pipex, i, mypipe, childid);
+		mypipe = ft_child(pipex, i, prevpipe, childid);
+		if (prevpipe != 0)
+			free(prevpipe);
+		prevpipe = mypipe;
 		i++;
 	}
+	free(mypipe);
 	while (i-- > 0)
 		waitpid(childid[i], 0, 0);
+	free(pipex);
+	free(childid);
 	ft_exit(0, "OK");
 }
