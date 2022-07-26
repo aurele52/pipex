@@ -6,7 +6,7 @@
 /*   By: audreyer <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/02/23 16:18:05 by audreyer          #+#    #+#             */
-/*   Updated: 2022/07/26 16:28:54 by audreyer         ###   ########.fr       */
+/*   Updated: 2022/07/26 20:52:40 by audreyer         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -58,6 +58,16 @@ int	ft_execute(char *argv, char **env)
 	return (0);
 }
 
+int	ft_close(int fd)
+{
+	int	closed;
+
+	closed = close(fd);
+	if (closed == -1)
+		write(2, "nop", 3);
+	return (closed);
+}
+
 int	*ft_child(t_pipex *pipex, int i, int *prevpipe, int *childid)
 {
 	int	*newpipe;
@@ -70,62 +80,58 @@ int	*ft_child(t_pipex *pipex, int i, int *prevpipe, int *childid)
 		if (i == 0)
 		{
 			dup2(pipex->fdin, 0);
-			close(newpipe[0]);
+			ft_close(newpipe[0]);
 			dup2(newpipe[1], 1);
-			close(newpipe[1]);
+			ft_close(newpipe[1]);
+			ft_close(pipex->fdin);
 		}
 		else if (i == pipex->argc - 4)
 		{
 
-			close(prevpipe[1]);
+			ft_close(prevpipe[1]);
 			dup2(prevpipe[0], 0);
-			close(prevpipe[0]);
+			ft_close(prevpipe[0]);
 			dup2(pipex->fdout, 1);
+			ft_close(pipex->fdout);
 		}
 		else
 		{
-			close(prevpipe[1]);
+//			ft_close(pipex->fdout);
+//			ft_close(pipex->fdin);
+			ft_close(prevpipe[1]);
 			dup2(prevpipe[0], 0);
-			close(prevpipe[0]);
-			close(newpipe[0]);
+			ft_close(prevpipe[0]);
+			ft_close(newpipe[0]);
 			dup2(newpipe[1], 1);
-			close(newpipe[1]);
+			ft_close(newpipe[1]);
 		}
-		dprintf(2, "%s = %i \n", pipex->argv[i+2],getpid());
 		ft_execute(pipex->argv[i + 2], pipex->env);
+		write(1, "dsa\n", 4);
 	}
 	else
 	{
 		if (i == 0)
-			close(pipex->fdin);
+			ft_close(pipex->fdin);
 		else
 		{
-			close(prevpipe[1]);
-			close(prevpipe[0]);
+			ft_close(prevpipe[1]);
+			ft_close(prevpipe[0]);
 			if (i == pipex->argc - 4)
-				close(pipex->fdout);
+				ft_close(pipex->fdout);
 		}
-
-
 	}
-//	int	fds;
-//
-//	fds = 0;
-//	while (fds != i)
-//		printf("%i = %i\n", i, childid[fds++]);
-//	dprintf(2, "main = %i \n",getpid());
 	return (newpipe);
 }
 
 int	main(int argc, char **argv, char **env)
 {
 	t_pipex *pipex;
-	int	*mypipe;
+	int	mypipe[3];
 	int	i;
 	int	*childid;
 
 	i = 0;
-	if (argc < 4)
+	if (argc < 3)
       		return (0);
 	pipex = malloc(sizeof(*pipex));
 	if (pipex == 0)
@@ -140,19 +146,12 @@ int	main(int argc, char **argv, char **env)
 	childid = malloc(sizeof(int) * (argc - 3));
 	if (childid == 0)
 		ft_exit(0, 0);
-//	dprintf(2, "main = %i \n",getpid());
 	while (i < argc - 3)
 	{
 		mypipe = ft_child(pipex, i, mypipe, childid);
 		i++;
 	}
-//	dprintf(2, "main = %i \n",getpid());
-//	int	fds;
-//
-//	fds = 0;
-//	while (fds != i)
-//		printf("%i = %i\n", i, childid[fds++]);
-	while (i-- < 0)
-		waitpid(-1, 0, 0);
+	while (i-- > 0)
+		waitpid(childid[i], 0, 0);
 	ft_exit(0, "OK");
 }
