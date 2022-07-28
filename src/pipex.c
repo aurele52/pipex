@@ -6,7 +6,7 @@
 /*   By: audreyer <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/02/23 16:18:05 by audreyer          #+#    #+#             */
-/*   Updated: 2022/07/27 15:02:46 by audreyer         ###   ########.fr       */
+/*   Updated: 2022/07/28 23:13:53 by audreyer         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,46 +18,77 @@ char	*ft_getpathline(char **env)
 	int	i;
 
 	i = 0;
-	while (env[i] != 0 && (env[i][0] != 'P' || env[i][1] != 'A' || env[i][2] != 'T' || env[i][3] != 'H' || env[i][4] != '='))
+	while (env[i] != 0 && (env[i][0] != 'P' || env[i][1] != 'A'
+		|| env[i][2] != 'T' || env[i][3] != 'H' || env[i][4] != '='))
 		i++;
 	if (env[i] == 0)
-		return(0);
+		return (0);
 	return (&env[i][5]);
 }
 
-char	**ft_getpath(char **env)
+char	**ft_getpath(t_pipex *pipex, char **env)
 {
 	char	*pathline;
 	char	**pathtab;
 
 	pathline = ft_getpathline(env);
-	pathtab = ft_split(pathline, ':', 0);
+	pathtab = ft_split(pathline, ':', pipex->garbage);
 	return (pathtab);
 }
 
-char	**ft_getcmd(char *cmd)
+char	**ft_getcmd(t_pipex *pipex, char *cmd)
 {
-	return (ft_split(cmd, ' ', 0));
+	if (ft_strlen(cmd) == 0)
+		ft_exit(pipex->garbage,
+			"arg empty, same as : parse error near `|'\n");
+	return (ft_split(cmd, ' ', pipex->garbage));
 }
 
-int	ft_execute(char *argv, char **env)
+void	ft_executesimple(t_pipex *pipex, char *cmdfile, char **cmd, char *error)
+{
+	if (!access(cmdfile, F_OK) && cmdfile[0] == '.' && cmdfile[1] == '/')
+	{
+		if (!access(cmdfile, X_OK))
+			execve(cmdfile, cmd, pipex->env);
+		else
+			error = cmdfile;
+	}
+	if (error)
+		ft_exit(pipex->garbage, ft_strjoin("permission denied: ",
+				ft_strjoin(error, "\n", pipex->garbage), pipex->garbage));
+	ft_exit(pipex->garbage, ft_strjoin("command not found: ",
+			ft_strjoin(cmd[0], "\n", pipex->garbage), pipex->garbage));
+}
+
+void	ft_execute(t_pipex *pipex, char *argv, char **env)
 {
 	char	**pathtab;
 	char	**cmd;
-	int	i;
-	
+	int		i;
+	char	*cmdfile;
+	char	*error;
+
 	i = 0;
-	pathtab = ft_getpath(env);
-	cmd = ft_getcmd(argv);
-	if (cmd == 0|| pathtab == 0)
-		return (0);
+	error = 0;
+	pathtab = ft_getpath(pipex, env);
+	if (pathtab == 0)
+		ft_exit(pipex->garbage, "no path in env\n");
+	cmd = ft_getcmd(pipex, argv);
+	if (cmd == 0)
+		ft_exit(pipex->garbage, "malloc error\n");
 	while (pathtab[i] != 0)
 	{
-		execve(ft_strjoin(ft_strjoin(pathtab[i], "/", 0), cmd[0], 0), cmd, env);
+		cmdfile = ft_strjoin(ft_strjoin(pathtab[i], "/", pipex->garbage), cmd[0], pipex->garbage);
+		if (!access(cmdfile, F_OK))
+		{
+			if (!access(cmdfile, X_OK))
+				execve(cmdfile, cmd, env);
+			else
+				error = cmdfile;
+		}
 		i++;
 	}
-	execve(ft_strjoin(ft_strjoin(".", "/", 0), cmd[0], 0), cmd, env);
-	return (0);
+	ft_executesimple(pipex, cmd[0], cmd, error);
 }
 
 int	ft1_close(int fd)
@@ -95,7 +126,7 @@ int	ft_close(int fd)
 int	*ft_child(t_pipex *pipex, int i, int *prevpipe, int *childid)
 {
 	int	*newpipe;
-	newpipe = malloc(sizeof(int) * 2);
+	newpipe = ft_malloc(sizeof(int) * 2, pipex->garbage);
 	pipe(newpipe);
 	childid[i] = fork();
 	if (childid[i] == 0)
@@ -128,9 +159,7 @@ int	*ft_child(t_pipex *pipex, int i, int *prevpipe, int *childid)
 			ft_close(newpipe[1]);
 			ft_close(pipex->fdout);
 		}
-		ft_execute(pipex->argv[i + 2], pipex->env);
-		perror("\033[31mError");
-		ft_exit(pipex->garbage, 0);
+		ft_execute(pipex, pipex->argv[i + 2], pipex->env);
 	}
 	else
 	{
@@ -176,7 +205,7 @@ t_pipex	*ft_pipexinit(int argc, char **argv, char **env)
 	pipex->fdin = open(argv[1], O_RDONLY, 0777);
 	if (pipex->fdin == -1)
 		ft_exit(garbage, "fail open");
-	pipex->fdout = open(argv[argc - 1], O_WRONLY | O_CREAT, 0777);
+	pipex->fdout = open(argv[argc - 1], O_WRONLY | O_CREAT | O_TRUNC , 0777);
 	if (pipex->fdout == -1)
 	{
 		close(pipex->fdin);
@@ -190,22 +219,17 @@ int	main(int argc, char **argv, char **env)
 	t_pipex *pipex;
 	int	*mypipe;
 	int	i;
-	int	*prevpipe;
 
 	i = 0;
 	if (argc < 5)
       		return (0);
 	pipex = ft_pipexinit(argc, argv, env);
-	prevpipe = 0;
+	mypipe = 0;
 	while (i < argc - 3)
 	{
-		mypipe = ft_child(pipex, i, prevpipe, pipex->childid);
-		if (prevpipe != 0)
-			free(prevpipe);
-		prevpipe = mypipe;
+		mypipe = ft_child(pipex, i, mypipe, pipex->childid);
 		i++;
 	}
-	free(mypipe);
 	while (i-- > 0)
 		waitpid(pipex->childid[i], 0, 0);
 	ft_exit(pipex->garbage, 0);
