@@ -6,7 +6,7 @@
 #    By: audreyer <marvin@42.fr>                    +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2022/02/21 22:50:22 by audreyer          #+#    #+#              #
-#    Updated: 2022/07/22 01:30:19 by audreyer         ###   ########.fr        #
+#    Updated: 2022/10/03 18:30:57 by audreyer         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -16,7 +16,9 @@ CC = gcc
 
 FLAG = -g -Wall -Werror -Wextra 
 
-SRC=	src/pipex.c
+SRC=	src/pipex.c	\
+	src/pipex2.c	\
+	src/exec.c
 
 OBJ = $(SRC:.c=.o)
 
