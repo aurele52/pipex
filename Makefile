@@ -3,69 +3,56 @@
 #                                                         :::      ::::::::    #
 #    Makefile                                           :+:      :+:    :+:    #
 #                                                     +:+ +:+         +:+      #
-#    By: audreyer <marvin@42.fr>                    +#+  +:+       +#+         #
+#    By: audreyer <audreyer@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
-#    Created: 2022/02/21 22:50:22 by audreyer          #+#    #+#              #
-#    Updated: 2022/10/03 18:30:57 by audreyer         ###   ########.fr        #
+#    Created: 2022/07/10 01:52:00 by audreyer          #+#    #+#              #
+#    Updated: 2022/08/08 15:54:43 by audreyer         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
+#
 
-NAME = pipex
+FILE=	pipex.c	\
+		pipex2.c	\
+		exec.c
 
-CC = gcc
+SRC_DIR = src/
 
-FLAG = -g -Wall -Werror -Wextra 
-
-SRC=	src/pipex.c	\
-	src/pipex2.c	\
-	src/exec.c
+SRC = $(addprefix $(SRC_DIR),$(FILE))
 
 OBJ = $(SRC:.c=.o)
 
-.c.o:
-	$(CC) $(FLAG) -I include -c $< -o $(<:.c=.o)
+DOBJ		=	${SRC:.c=.d}
+
+NAME = pipex
 
 INC = include/pipex.h
 
-INC_LIBFT = include/libft.h
+CC = gcc
 
-LIB = libft.a
+FLAGS		=	-g -Wall -Werror -Wextra -MMD
 
-all:	$(LIB) $(NAME)
+RM = rm -rf
 
-$(NAME):	$(OBJ) $(INC) $(INC_LIBFT)
-	$(CC) $(FLAG) $(OBJ) $(LIB) -o $(NAME)
+all: $(NAME)
+
+-include ${DOBJ}
+
+.c.o:
+			$(CC) $(FLAGS) -I include -c $< -o $(<:.c=.o)
+
+$(NAME):	$(LIB) $(OBJ) $(INC) $(INC_LIBFT)
+	$(CC) $(FLAGS) $(OBJ) $(LIB) -o $(NAME)
 
 clean:
-	rm -f $(OBJ) libft.a
+	${RM} $(OBJ) ${DOBJ}
 
-fclean:	clean
-	rm -f $(NAME)
+fclean: clean
+		$(RM) $(NAME)
 
-$(LIB)	:
-	make -C ./libft/
-	rm -f libft.a
-	cp libft/libft.a .
+re:		fclean all
 
-re			: fclean all 
+INC_LIBFT = include/libft.h
 
-git:
-	make git -C ./libft/
-	rm -f libft.a
-	make fclean
-	git add obj
-	git add src
-	git add Makefile
-	git add include/
-	read S; git commit -m $${S}
-	git push
+LIB = $(SRC_DIR)libft.a
 
-fini:
-	rm libft
-	cp -r ../libft .
-	rm -rf libft/.git
-	make fclean -C ./libft/
-	git add libft
-	make git
-
-.PHONY: all clean fclean re libft
+.PHONY: all clean fclean re .c.o

@@ -10,7 +10,7 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "pipex.h"
+#include "../include/pipex.h"
 #include <errno.h>
 
 int	ft_heredoc(t_pipex *pipex, char *limiter)
